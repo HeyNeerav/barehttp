@@ -94,7 +94,7 @@ async function serveClient(socket: net.Socket): Promise<void> {
       break;
     }
 
-    console.log("data", data);
+    console.log("data", data.toString());
     await soWrite(conn, data);
   }
 }
@@ -112,14 +112,91 @@ async function newConn(socket: net.Socket): Promise<void> {
 
 }
 
-let server = net.createServer({
-  pauseOnConnect: true,
-});
+type TCPListener = {
+  server: net.Server;
+  error: null | Error;
+  sockets: net.Socket[]
 
-server.on("connection", newConn);
+  acceptor: null | {
+    resolve: (value: net.Socket) => void;
+    reject: (reason: Error) => void;
+  }
+}
 
-server.on("error", (err: Error) => { 
-  throw err
-})
+function soListen(host: string, port: number): TCPListener {
+  let server = net.createServer({
+    pauseOnConnect: true,
+  });
 
-server.listen({ host: "127.0.0.1", port: 1234 });
+  const listener: TCPListener ={
+    server,
+    sockets: [],
+    error: null,
+    acceptor: null,
+  }
+
+  server.on("connection", (socket: net.Socket) => {
+    if (listener.acceptor) {
+      listener.acceptor.resolve(socket);
+      listener.acceptor = null;
+    } else {
+      listener.sockets.push(socket);
+    }
+
+  });
+
+  server.on("error", (err: Error) => {
+    listener.error = err;
+    if (listener.acceptor) {
+      listener.acceptor.reject(err);
+      listener.acceptor = null;
+    }
+  })
+
+  server.listen({ host, port }, () => {
+    console.log(`Server running on ${host}:${port}`)
+  });
+  
+
+  return listener;
+}
+
+function soAccept(listener: TCPListener): Promise<net.Socket> {
+  return new Promise((resolve, reject) => {
+    if (listener.error) {
+      reject(listener.error);
+      return;
+    }
+
+    if (listener.sockets.length > 0) {
+      const socket = listener.sockets.shift()!;
+      resolve(socket);
+      return;
+    }
+
+    if (listener.acceptor) {
+      reject(new Error("Another accept is already pending"));
+      return;
+    }
+
+
+    listener.acceptor = { resolve, reject };
+  })
+}
+
+
+async function main() {
+  const listener = soListen("127.0.0.1", 1234);
+
+  while (true) {
+    try {
+      const socket = await soAccept(listener);
+      newConn(socket);
+    } catch (error) {
+      console.error("Error accepting connection:", error);
+      break;
+    }
+  }
+}
+
+main()
