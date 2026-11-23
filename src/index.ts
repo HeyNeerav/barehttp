@@ -84,9 +84,7 @@ function soWrite(conn: TCPConn, data: Buffer): Promise<void> {
   })
 };
 
-async function serveClient(socket: net.Socket): Promise<void> { 
-  const conn: TCPConn = soInit(socket);
-
+async function serveClient(conn: TCPConn): Promise<void> { 
   while (true) {
     const data = await soRead(conn);
     if (data.length === 0) {
@@ -99,11 +97,12 @@ async function serveClient(socket: net.Socket): Promise<void> {
   }
 }
 
-async function newConn(socket: net.Socket): Promise<void> {
+async function newConn(conn: TCPConn): Promise<void> {
+  const { socket } = conn;
   console.log("new connection", socket.remoteAddress, socket.remotePort);
 
   try {
-    await serveClient(socket);
+    await serveClient(conn);
   } catch (exc) {
     console.error("Error serving client:", exc);
   } finally {
@@ -118,7 +117,7 @@ type TCPListener = {
   sockets: net.Socket[]
 
   acceptor: null | {
-    resolve: (value: net.Socket) => void;
+    resolve: (value: TCPConn) => void;
     reject: (reason: Error) => void;
   }
 }
@@ -137,7 +136,7 @@ function soListen(host: string, port: number): TCPListener {
 
   server.on("connection", (socket: net.Socket) => {
     if (listener.acceptor) {
-      listener.acceptor.resolve(socket);
+      listener.acceptor.resolve(soInit(socket));
       listener.acceptor = null;
     } else {
       listener.sockets.push(socket);
@@ -161,7 +160,7 @@ function soListen(host: string, port: number): TCPListener {
   return listener;
 }
 
-function soAccept(listener: TCPListener): Promise<net.Socket> {
+function soAccept(listener: TCPListener): Promise<TCPConn> {
   return new Promise((resolve, reject) => {
     if (listener.error) {
       reject(listener.error);
@@ -170,7 +169,7 @@ function soAccept(listener: TCPListener): Promise<net.Socket> {
 
     if (listener.sockets.length > 0) {
       const socket = listener.sockets.shift()!;
-      resolve(socket);
+      resolve(soInit(socket));
       return;
     }
 
@@ -190,8 +189,8 @@ async function main() {
 
   while (true) {
     try {
-      const socket = await soAccept(listener);
-      newConn(socket);
+      const conn = await soAccept(listener);
+      newConn(conn);
     } catch (error) {
       console.error("Error accepting connection:", error);
       break;
