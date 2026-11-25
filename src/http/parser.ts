@@ -3,6 +3,7 @@ import { HTTPError, type HTTPReq } from "./types";
 const CRLF = Buffer.from("\r\n");
 const SP = 0x20;
 const COLON = 0x3a;
+// const OWS = Buffer.from(" \t");
 const TOKEN_CHARS = new Uint8Array(128);
 for (const ch of "!#$%&'*+-.^_`|~0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz") {
   TOKEN_CHARS[ch.charCodeAt(0)] = 1;
@@ -94,4 +95,38 @@ export function parseHTTPReq(data: Buffer): HTTPReq {
     version,
     headers,
   };
+}
+
+export function fieldGet(headers: Buffer[], key: string): null | Buffer {
+  const keyLower = key.toLowerCase();
+  for (const header of headers) {
+    const colonIx = header.indexOf(COLON);
+    if (colonIx <= 0) {
+      continue;
+    }
+
+    const fieldName = header.subarray(0, colonIx);
+    const fieldValue = header.subarray(colonIx + 1);
+    const owsIx = fieldValue.indexOf(SP);
+    const trimmed = owsIx !== -1 ? fieldValue.subarray(owsIx + 1) : fieldValue;
+    if (fieldName.toString("ascii").toLowerCase() === keyLower) {
+      return trimmed;
+    }
+  }
+  return null;
+};
+
+export function parseDec(s: string) {
+  if (s.length === 0) {
+    throw new HTTPError(400, "bad decimal");
+  }
+  let num = 0;
+  for (let i = 0; i < s.length; i++) {
+    const ch = s.charCodeAt(i);
+    if (ch < 48 || ch > 57) {
+      throw new HTTPError(400, "bad decimal");
+    }
+    num = num * 10 + (ch - 48);
+  }
+  return num;
 }
