@@ -1,13 +1,15 @@
 import { soWrite, type TCPConn } from "@/tcp/connection";
 import { fieldGet } from "./parser";
-import type { HTTPRes } from "./types";
+import { HTTPError, type HTTPRes } from "./types";
 
 function statusText(code: number): string {
   switch (code) {
     case 200: return "OK";
     case 400: return "Bad Request";
     case 404: return "Not Found";
+    case 413: return "Payload Too Large";
     case 500: return "Internal Server Error";
+    case 501: return "Not Implemented";
     default: return "Unknown";
   }
 }
@@ -21,7 +23,7 @@ export function encodeHTTPResp(resp: HTTPRes): Buffer {
 
 export async function writeHTTPResp(conn: TCPConn, resp: HTTPRes): Promise<void> { 
   if (resp.body.length < 0) { 
-    throw new Error("TODO: chunked encoding");
+    throw new HTTPError(501, "TODO: chunked encoding");
   }
 
   console.assert(!fieldGet(resp.headers, "Content-Length"));
