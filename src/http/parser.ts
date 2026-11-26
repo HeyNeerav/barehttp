@@ -76,14 +76,16 @@ function validateHeader(header: Buffer): boolean {
 
 export function parseHTTPReq(data: Buffer): HTTPReq {
   const lines: Buffer[] = splitLines(data);
-
   const [method, uri, version] = parseRequestLine(lines[0]!);
 
   const headers: Buffer[] = [];
   for (let i = 1; i < lines.length; i++) {
     const h = Buffer.from(lines[i]!);
+    if (h.length === 0) {
+      break;
+    }
     if (!validateHeader(h)) {
-      throw new HTTPError(400, "bad field");
+      throw new HTTPError(400, `bad field h${i}`);
     }
     headers.push(h);
   }
