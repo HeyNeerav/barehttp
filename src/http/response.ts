@@ -1,6 +1,5 @@
-import { soWrite, type TCPConn } from "@/tcp/connection";
 import { fieldGet } from "./parser";
-import { HTTPError, type HTTPRes } from "./types";
+import { HTTPError, type BufferedWriter, type HTTPRes } from "./types";
 
 function statusText(code: number): string {
   switch (code) {
@@ -21,7 +20,7 @@ export function encodeHTTPResp(resp: HTTPRes): Buffer {
   return Buffer.from(statusLine + headerSection + "\r\n", "latin1");
 }
 
-export async function writeHTTPResp(conn: TCPConn, resp: HTTPRes): Promise<void> { 
+export async function writeHTTPResp(writer: BufferedWriter, resp: HTTPRes): Promise<void> { 
   if (resp.body.length < 0) { 
     throw new HTTPError(501, "TODO: chunked encoding");
   }
@@ -29,13 +28,15 @@ export async function writeHTTPResp(conn: TCPConn, resp: HTTPRes): Promise<void>
   console.assert(!fieldGet(resp.headers, "Content-Length"));
   resp.headers.push(Buffer.from(`Content-Length: ${resp.body.length}`));
 
-  await soWrite(conn, encodeHTTPResp(resp));
+  await writer.write(encodeHTTPResp(resp));
 
   while (true) {
     const data = await resp.body.read();
     if (data.length === 0) {
       break;
     }
-    await soWrite(conn, data);
+    await writer.write(data);
   }
+
+  writer.flush();
 }

@@ -1,4 +1,4 @@
-import { soRead, soWrite, type TCPConn } from "@/tcp/connection";
+import { createBufferedWriter, soRead, soWrite, type TCPConn } from "@/tcp/connection";
 import { bufPop, bufPush, type DynBuf } from "@/buffer/dynamic-buffer";
 import { HTTPError, type BodyReader, type HTTPReq, type HTTPRes } from "./types";
 import { parseHTTPReq } from "./parser";
@@ -31,6 +31,9 @@ export async function serveClient(conn: TCPConn): Promise<void> {
     length: 0,
     start: 0,
   };
+
+  const writer = createBufferedWriter(conn);
+
   while (true) {
     const msg: null | HTTPReq = cutMessage(buf);
 
@@ -39,7 +42,10 @@ export async function serveClient(conn: TCPConn): Promise<void> {
       bufPush(buf, data);
 
       if (data.length === 0) {
-        console.log("end connection");
+        console.log("end connection", socket.remoteAddress, socket.remotePort);
+        if (buf.length === 0) { 
+          return; // EOF
+        }
         throw new HTTPError(400, "Unexpected EOF");
       }
       continue;
@@ -48,7 +54,7 @@ export async function serveClient(conn: TCPConn): Promise<void> {
     const reqBody: BodyReader = readerFromReq(conn, buf, msg);
     const res: HTTPRes = await handleReq(msg, reqBody);
 
-    await writeHTTPResp(conn, res);
+    await writeHTTPResp(writer, res);
 
     if (msg.version === "1.0") {
       return;
@@ -75,7 +81,8 @@ export async function newConn(conn: TCPConn): Promise<void> {
       };
 
       try {
-        await writeHTTPResp(conn, resp);
+        const writer = createBufferedWriter(conn);
+        await writeHTTPResp(writer, resp);
       } catch (exc){}
       
     }
