@@ -91,7 +91,6 @@ export async function handleReq(
   body: BodyReader,
 ): Promise<HTTPRes> {
   let resp: BodyReader;
-  console.dir();
   switch (req.uri) {
     case "/echo":
       resp = readerFromMemory(Buffer.from((await body.read()).toString() + "\n"));
