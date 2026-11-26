@@ -3,6 +3,12 @@ export type BodyReader = {
   read: () => Promise<Buffer>;
 };
 
+export type BufferedWriter = {
+  write: (data: Buffer) => Promise<void>,
+  flush: () => Promise<void>,
+  // ...
+};
+
 export type HTTPReq = {
   method: string;
   uri: string;

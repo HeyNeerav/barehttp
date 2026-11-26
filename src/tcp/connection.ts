@@ -1,3 +1,4 @@
+import type { BufferedWriter } from "@/http/types";
 import * as net from "net";
 
 export type TCPConn = {
@@ -72,6 +73,11 @@ export function soWrite(conn: TCPConn, data: Buffer): Promise<void> {
       return;
     }
 
+    if (conn.ended) {
+      reject(new Error("connection ended"));
+      return;
+    }
+
     conn.socket.write(data, (err?: Error | null) => {
       if (err) {
         reject(err);
@@ -81,3 +87,33 @@ export function soWrite(conn: TCPConn, data: Buffer): Promise<void> {
     });
   });
 }
+
+const cap = 1024 * 4 // 4KB;
+
+export function createBufferedWriter(conn: TCPConn): BufferedWriter {
+  const buf = Buffer.alloc(cap);
+  let offset = 0;
+
+  async function flush() {
+    if (offset > 0) {
+      await soWrite(conn, buf.subarray(0, offset));
+      offset = 0;
+    }
+  }
+
+  async function write(data: Buffer) {
+    if (offset + data.length > cap) {
+      await flush();
+    }
+
+    if (data.length > cap) {
+      await soWrite(conn, data);
+      return;
+    }
+
+    data.copy(buf, offset);
+    offset += data.length;
+  }
+
+  return {write, flush}
+};
