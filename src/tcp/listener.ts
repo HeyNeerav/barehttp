@@ -15,6 +15,7 @@ export type TCPListener = {
 export function soListen(host: string, port: number): TCPListener {
   let server = net.createServer({
     pauseOnConnect: true,
+    noDelay: true,
   });
 
   const listener: TCPListener = {
