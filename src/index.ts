@@ -1,4 +1,4 @@
-import { newConn } from "./protocol/echo-client";
+import { newConn } from "./http/server";
 import { soAccept, soListen } from "./tcp/listener";
 
 async function server() {
