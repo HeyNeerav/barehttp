@@ -1,10 +1,17 @@
 import { soRead, type TCPConn } from "@/tcp/connection";
 import { fieldGet, parseDec } from "./parser";
 import { bufPop, bufPush, type DynBuf } from "@/buffer/dynamic-buffer";
-import { HTTPError, type BodyReader, type HTTPReq } from "./types";
+import {
+  HTTPError,
+  type BodyReader,
+  type HTTPReq,
+  type HTTPRes,
+} from "./types";
 
 export function readerFromConnLength(
-  conn: TCPConn, buf: DynBuf, remain: number
+  conn: TCPConn,
+  buf: DynBuf,
+  remain: number,
 ): BodyReader {
   return {
     length: remain,
@@ -22,27 +29,32 @@ export function readerFromConnLength(
 
       const consume = Math.min(buf.length, remain);
       remain -= consume;
-      const data = Buffer.from(buf.data.subarray(buf.start, buf.start + consume));
+      const data = Buffer.from(
+        buf.data.subarray(buf.start, buf.start + consume),
+      );
       bufPop(buf, consume);
       return data;
-    }
-  }
+    },
+  };
 }
 
 export function readerFromReq(conn: TCPConn, buf: DynBuf, req: HTTPReq) {
-  let bodyLen = -1
+  let bodyLen = -1;
   const contentLen = fieldGet(req.headers, "Content-Length");
   if (contentLen) {
-    bodyLen = parseDec(contentLen.toString("latin1"))
+    bodyLen = parseDec(contentLen.toString("latin1"));
     if (isNaN(bodyLen)) {
       throw new HTTPError(400, "bad Content-Length");
     }
   }
 
   const bodyAllowed = !(req.method === "GET" || req.method === "HEAD");
-  const chunked = fieldGet(req.headers, "Transfer-Encoding")?.equals(Buffer.from("chunked")) || false
+  const chunked =
+    fieldGet(req.headers, "Transfer-Encoding")?.equals(
+      Buffer.from("chunked"),
+    ) || false;
 
-  if (!bodyAllowed && (bodyLen > 0 || chunked)) { 
+  if (!bodyAllowed && (bodyLen > 0 || chunked)) {
     throw new HTTPError(400, "HTTP body not allowed");
   }
 
@@ -53,8 +65,43 @@ export function readerFromReq(conn: TCPConn, buf: DynBuf, req: HTTPReq) {
   if (bodyLen >= 0) {
     return readerFromConnLength(conn, buf, bodyLen);
   } else if (chunked) {
-    throw new HTTPError(501, "TODO")
+    throw new HTTPError(501, "TODO");
   } else {
-    throw new HTTPError(501, "TODO")
+    throw new HTTPError(501, "TODO");
   }
+}
+
+export function readerFromMemory(data: Buffer): BodyReader {
+  let done = false;
+  return {
+    length: data.length,
+    read: async (): Promise<Buffer> => {
+      if (done) {
+        return Buffer.from(""); // no more data
+      } else {
+        done = true;
+        return data;
+      }
+    },
+  };
+}
+
+export async function handleReq(
+  req: HTTPReq,
+  body: BodyReader,
+): Promise<HTTPRes> {
+  let resp: BodyReader;
+  switch (req.uri.toString("latin1")) {
+    case "/echo":
+      resp = body;
+      break;
+    default:
+      resp = readerFromMemory(Buffer.from("hello world\n"));
+  }
+
+  return {
+    code: 200,
+    headers: [Buffer.from("Server: barehttp")],
+    body: resp,
+  };
 }
