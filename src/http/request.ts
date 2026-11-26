@@ -91,9 +91,10 @@ export async function handleReq(
   body: BodyReader,
 ): Promise<HTTPRes> {
   let resp: BodyReader;
-  switch (req.uri.toString("latin1")) {
+  console.dir();
+  switch (req.uri) {
     case "/echo":
-      resp = body;
+      resp = readerFromMemory(Buffer.from((await body.read()).toString() + "\n"));
       break;
     default:
       resp = readerFromMemory(Buffer.from("hello world\n"));

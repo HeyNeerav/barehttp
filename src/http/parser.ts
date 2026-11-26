@@ -26,7 +26,7 @@ function splitLines(buf: Buffer): Buffer[] {
   return parts;
 }
 
-function parseRequestLine(line: Buffer): [string, Buffer, string] {
+function parseRequestLine(line: Buffer): [string, string, string] {
   const firstSpace = line.indexOf(SP);
   if (firstSpace <= 0) {
     throw new HTTPError(400, "bad request line");
@@ -45,7 +45,7 @@ function parseRequestLine(line: Buffer): [string, Buffer, string] {
   const uri = line.subarray(firstSpace + 1, secondSpace);
   const version = line.subarray(secondSpace + 1);
 
-  return [method.toString("ascii"), uri, version.toString("ascii")];
+  return [method.toString("ascii"), uri.toString("ascii"), version.toString("ascii")];
 }
 
 function validateHeader(header: Buffer): boolean {

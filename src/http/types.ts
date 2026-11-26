@@ -5,7 +5,7 @@ export type BodyReader = {
 
 export type HTTPReq = {
   method: string;
-  uri: Buffer;
+  uri: string;
   version: string;
   headers: Buffer[];
 };
