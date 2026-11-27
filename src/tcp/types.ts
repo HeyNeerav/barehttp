@@ -24,5 +24,7 @@ export type TCPConn = {
 export type BufferedWriter = {
   write: (data: Buffer) => Promise<void>,
   flush: () => Promise<void>,
-  // ...
+  available: () => number,
+  getBuffer: () => Buffer,
+  advance: (n: number) => void,
 };

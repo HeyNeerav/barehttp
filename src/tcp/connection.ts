@@ -78,7 +78,7 @@ export function soWrite(conn: TCPConn, data: Buffer): Promise<void> {
   });
 }
 
-const cap = 1024 * 4 // 4KB;
+const cap = 1024 * 4; // 4KB;
 
 export function createBufferedWriter(conn: TCPConn): BufferedWriter {
   const buf = Buffer.alloc(cap);
@@ -105,5 +105,18 @@ export function createBufferedWriter(conn: TCPConn): BufferedWriter {
     offset += data.length;
   }
 
-  return {write, flush}
-};
+  function available() {
+    return cap - offset;
+  }
+
+  function getBuffer() {
+    return buf.subarray(offset, cap);
+  }
+
+  function advance(n: number) {
+    console.assert(offset + n <= cap);
+    offset += n;
+  }
+
+  return { write, flush, available, getBuffer, advance };
+}
