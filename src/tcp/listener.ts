@@ -1,23 +1,13 @@
 import * as net from "net";
-import { soInit, type TCPConn } from "./connection";
-
-export type TCPListener = {
-  server: net.Server;
-  error: null | Error;
-  sockets: net.Socket[];
-
-  acceptor: null | {
-    resolve: (value: TCPConn) => void;
-    reject: (reason: Error) => void;
-  };
-};
+import { soInit } from "./connection";
+import type { TCPListener, TCPConn } from "./types";
 
 export function soListen(host: string, port: number): TCPListener {
   let server = net.createServer({
     pauseOnConnect: true,
     noDelay: true,
   });
-
+  
   const listener: TCPListener = {
     server,
     sockets: [],
