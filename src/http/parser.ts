@@ -1,4 +1,5 @@
-import { HTTPError, type HTTPReq } from "./types";
+import type { HTTPReq } from "./types";
+import { HTTPError } from "./HTTPError";
 
 const CRLF = Buffer.from("\r\n");
 const SP = 0x20;

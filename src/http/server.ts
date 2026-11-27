@@ -1,9 +1,12 @@
-import { createBufferedWriter, soRead, soWrite, type TCPConn } from "@/tcp/connection";
-import { bufPop, bufPush, type DynBuf } from "@/buffer/dynamic-buffer";
-import { HTTPError, type BodyReader, type HTTPReq, type HTTPRes } from "./types";
+import { HTTPError } from "./HTTPError";
 import { parseHTTPReq } from "./parser";
-import { handleReq, readerFromMemory, readerFromReq } from "./request";
 import { writeHTTPResp } from "./response";
+import type { BodyReader, HTTPReq, HTTPRes } from "./types";
+import { handleReq, readerFromMemory, readerFromReq } from "./request";
+
+import type { TCPConn } from "@/tcp/types";
+import { createBufferedWriter, soRead } from "@/tcp/connection";
+import { bufPop, bufPush, type DynBuf } from "@/buffer/dynamic-buffer";
 
 const kMaxHeaderLen = 1024 * 8;
 
@@ -43,7 +46,7 @@ export async function serveClient(conn: TCPConn): Promise<void> {
 
       if (data.length === 0) {
         console.log("end connection", socket.remoteAddress, socket.remotePort);
-        if (buf.length === 0) { 
+        if (buf.length === 0) {
           return; // EOF
         }
         throw new HTTPError(400, "Unexpected EOF");
@@ -60,7 +63,7 @@ export async function serveClient(conn: TCPConn): Promise<void> {
       return;
     }
 
-    while ( (await reqBody.read()).length > 0) {}
+    while ((await reqBody.read()).length > 0) {}
   }
 }
 
@@ -72,19 +75,18 @@ export async function newConn(conn: TCPConn): Promise<void> {
     await serveClient(conn);
   } catch (exc) {
     console.error("Error serving client:", exc);
-    
+
     if (exc instanceof HTTPError) {
       const resp: HTTPRes = {
         code: exc.code,
         headers: [],
-        body: readerFromMemory(Buffer.from(exc.message  + "\n")),
+        body: readerFromMemory(Buffer.from(exc.message + "\n")),
       };
 
       try {
         const writer = createBufferedWriter(conn);
         await writeHTTPResp(writer, resp);
-      } catch (exc){}
-      
+      } catch (exc) {}
     }
   } finally {
     socket.destroy();

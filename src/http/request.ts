@@ -1,12 +1,10 @@
-import { soRead, type TCPConn } from "@/tcp/connection";
+import { HTTPError } from "./HTTPError";
 import { fieldGet, parseDec } from "./parser";
+import type { BodyReader, HTTPReq, HTTPRes } from "./types";
+
+import { soRead } from "@/tcp/connection";
+import type { TCPConn } from "@/tcp/types";
 import { bufPop, bufPush, type DynBuf } from "@/buffer/dynamic-buffer";
-import {
-  HTTPError,
-  type BodyReader,
-  type HTTPReq,
-  type HTTPRes,
-} from "./types";
 
 export function readerFromConnLength(
   conn: TCPConn,
@@ -93,7 +91,9 @@ export async function handleReq(
   let resp: BodyReader;
   switch (req.uri) {
     case "/echo":
-      resp = readerFromMemory(Buffer.from((await body.read()).toString() + "\n"));
+      resp = readerFromMemory(
+        Buffer.from((await body.read()).toString() + "\n"),
+      );
       break;
     default:
       resp = readerFromMemory(Buffer.from("hello world\n"));
